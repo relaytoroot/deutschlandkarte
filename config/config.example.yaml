@@ -1,0 +1,5 @@
+paths:
+  geojson: "assets/germany.geojson"
+  excel: "data/Datenmuster_OSNV_Maps.xlsx"
+  icons: "assets/icons"
+  out_html: "deutschland_projekte.html"

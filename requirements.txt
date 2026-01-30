@@ -1,0 +1,7 @@
+pandas
+openpyxl
+geopandas
+pgeocode
+folium
+branca
+Pillow
