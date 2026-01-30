@@ -1,0 +1,8 @@
+.env
+.env.*
+!.env.example
+
+# local env (do not commit)
+.env
+.env.*
+!.env.example

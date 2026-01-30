@@ -5,3 +5,4 @@ pgeocode
 folium
 branca
 Pillow
+python-dotenv>=1.0
