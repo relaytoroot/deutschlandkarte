@@ -17,16 +17,29 @@ warnings.filterwarnings("ignore")
 # ======================================================
 # BASIS
 # ======================================================
-BASE_DIR = Path(r"C:\Sevgi\Deutschlandkarte")
+try:
+    from dotenv import load_dotenv
+except ImportError:
+    load_dotenv = None
 
-GERMANY_GEOJSON_PATH = BASE_DIR / "germany.geojson"
-EUROPE_GEOJSON_PATH = BASE_DIR / "europe.geojson"
-EXCEL_PATH = BASE_DIR / "Datenmuster_OSNV_Maps.xlsx"
-ICON_DIR = BASE_DIR / "Icons-ICO (akl)"
-OUT_HTML = BASE_DIR / "deutschland_projekte.html"
+# ======================================================
+# BASIS (portable)
+# ======================================================
+PROJECT_ROOT = Path(__file__).resolve().parents[2]  # .../deutschlandkarte
+if load_dotenv:
+    load_dotenv(PROJECT_ROOT / ".env")  # lokale .env (nicht committen)
 
-ICON_SIZE = 18
-PIN_SIZE = 36
+def env_path(var_name: str, default: Path) -> Path:
+    v = os.getenv(var_name, "").strip()
+    return Path(v).expanduser().resolve() if v else default
+
+BASE_DIR = env_path("DEUTSCHLANDKARTE_BASE", PROJECT_ROOT)
+
+GERMANY_GEOJSON_PATH = env_path("GERMANY_GEOJSON_PATH", BASE_DIR / "germany.geojson")
+EUROPE_GEOJSON_PATH  = env_path("EUROPE_GEOJSON_PATH",  BASE_DIR / "europe.geojson")
+EXCEL_PATH           = env_path("EXCEL_PATH",           BASE_DIR / "Datenmuster_OSNV_Maps.xlsx")
+ICON_DIR             = env_path("ICON_DIR",             BASE_DIR / "Icons-ICO (akl)")
+OUT_HTML             = env_path("OUT_HTML",             BASE_DIR / "deutschland_projekte.html")
 JITTER_STEP_M = 120
 
 # ======================================================
