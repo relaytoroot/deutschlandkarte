@@ -6,3 +6,19 @@ folium
 branca
 Pillow
 python-dotenv>=1.0
+fiona==1.9.6
+shapely==2.0.7
+# ===== Datenbank-Unterstützung (optional) =====
+# Installiere nur die DB-Treiber die du brauchst:
+
+# PostgreSQL
+sqlalchemy>=2.0
+psycopg2-binary>=2.9  # oder: psycopg[binary]
+
+# MySQL (optional)
+# pymysql>=1.0
+
+# Microsoft SQL Server (optional)
+# pyodbc>=4.0
+
+# SQLite (bereits in Python integriert)

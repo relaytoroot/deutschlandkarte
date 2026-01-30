@@ -13,6 +13,15 @@ import folium
 from branca.element import Element
 from PIL import Image
 
+# Importiere neuen Data Loader (mit Fallback für relative/absolute imports)
+try:
+    from .data_loader import load_projects, get_data_source
+except ImportError:
+    from data_loader import load_projects, get_data_source
+
+ICON_SIZE = 18
+PIN_SIZE = 36
+
 warnings.filterwarnings("ignore")
 
 # ======================================================
@@ -36,10 +45,10 @@ def env_path(var_name: str, default: Path) -> Path:
 
 BASE_DIR = env_path("DEUTSCHLANDKARTE_BASE", PROJECT_ROOT)
 
-GERMANY_GEOJSON_PATH = env_path("GERMANY_GEOJSON_PATH", BASE_DIR / "germany.geojson")
-EUROPE_GEOJSON_PATH  = env_path("EUROPE_GEOJSON_PATH",  BASE_DIR / "europe.geojson")
-EXCEL_PATH           = env_path("EXCEL_PATH",           BASE_DIR / "Datenmuster_OSNV_Maps.xlsx")
-ICON_DIR             = env_path("ICON_DIR",             BASE_DIR / "Icons-ICO (akl)")
+GERMANY_GEOJSON_PATH = env_path("GERMANY_GEOJSON_PATH", BASE_DIR / 'assets/germany.geojson')
+EUROPE_GEOJSON_PATH  = env_path("EUROPE_GEOJSON_PATH",  BASE_DIR / 'assets/europe.geojson')
+EXCEL_PATH           = env_path("EXCEL_PATH",           BASE_DIR / 'data/Datenmuster_OSNV_Maps.xlsx')
+ICON_DIR             = env_path("ICON_DIR",             BASE_DIR / 'assets/icons')
 OUT_HTML             = env_path("OUT_HTML",             BASE_DIR / "deutschland_projekte.html")
 JITTER_STEP_M = 120
 
@@ -93,6 +102,52 @@ GER_STATE_CAPITALS = {
     "Stuttgart": (48.7758, 9.1829),
     "München": (48.1374, 11.5755),
     "Düsseldorf": (51.2277, 6.7735),
+}
+
+# ======================================================
+# NACHBARLÄNDER DEUTSCHLAND
+# ======================================================
+GER_NEIGHBORS = {
+    "Dänemark", "Danmark", "Denmark", "Polen", "Poland", "Czechia", "Czech Republic",
+    "Österreich", "Austria", "Schweiz", "Switzerland", "Frankreich", "France", 
+    "Luxemburg", "Luxembourg", "Belgien", "Belgium", "Niederlande", "Netherlands"
+}
+
+# Länder die zu Europa gehören (ohne Russland, Türkei, Kasachstan, etc.)
+EUROPEAN_COUNTRIES = {
+    "Aland", "Albania", "Andorra", "Armenia", "Austria", "Azerbaijan",
+    "Belarus", "Belgium", "Bosnia and Herzegovina", "Bulgaria", "Croatia", 
+    "Cyprus", "Czechia", "Dänemark", "Danmark", "Denmark", "Estonia", 
+    "Faroe Islands", "Finland", "France", "Georgia", "Greece", "Guernsey",
+    "Hungary", "Iceland", "Ireland", "Isle of Man", "Italy", "Jersey",
+    "Kosovo", "Latvia", "Liechtenstein", "Lithuania", "Luxembourg", "Malta",
+    "Moldova", "Monaco", "Montenegro", "Netherlands", "North Macedonia", 
+    "Norway", "Poland", "Portugal", "Romania", "Slovakia", "Slovenia", 
+    "Spain", "Sweden", "Switzerland", "United Kingdom", "Vatican"
+}
+
+# Farben für Länder - verschiedene leichte Farbtöne
+COUNTRY_COLORS = {
+    # Nachbarländer - heller
+    "Austria": "#c7e9c0", "Belgium": "#d9f0d3", "Czechia": "#e5f5e0",
+    "Czech Republic": "#e5f5e0", "Denmark": "#dae8f4", "Dänemark": "#dae8f4",
+    "France": "#f4f1de", "Frankreich": "#f4f1de", "Luxembourg": "#e2f0d9", 
+    "Luxemburg": "#e2f0d9", "Netherlands": "#daeef7", "Niederlande": "#daeef7", 
+    "Poland": "#d4edda", "Switzerland": "#e8d5f2", "Schweiz": "#e8d5f2",
+    # Andere Länder - unterschiedliche Pastelltöne
+    "Aland": "#e0f2f7", "Albania": "#d9e8d9", "Andorra": "#f0d9e8",
+    "Armenia": "#f5ddb0", "Azerbaijan": "#fce4d6", "Belarus": "#dae8f4",
+    "Bulgaria": "#e5d9f0", "Croatia": "#d9f0d3", "Cyprus": "#fff4d6",
+    "Estonia": "#cce7ff", "Finland": "#ccf0ff", "Georgia": "#ffe5cc",
+    "Greece": "#fff9e6", "Guernsey": "#e5f2ff", "Hungary": "#e2d9f0",
+    "Iceland": "#ccdaff", "Ireland": "#d9f0d3", "Isle of Man": "#e5f2ff",
+    "Italy": "#fce5d6", "Jersey": "#e5f2ff", "Kosovo": "#e0d9f0",
+    "Latvia": "#cce7ff", "Liechtenstein": "#e8d5f2", "Lithuania": "#cce7ff",
+    "Malta": "#fff4d6", "Moldova": "#f0d9e8", "Monaco": "#fce5d6",
+    "Montenegro": "#e0d9f0", "North Macedonia": "#e5d9f0", "Norway": "#ccdaff",
+    "Portugal": "#fff9e6", "Romania": "#f0d9e8", "Slovakia": "#d9f0d3",
+    "Slovenia": "#d9f0d3", "Spain": "#fff9e6", "Sweden": "#ccdaff",
+    "United Kingdom": "#e5f2ff", "Vatican": "#fce5d6"
 }
 
 # ======================================================
@@ -472,30 +527,36 @@ def main():
         top:20px;
         left:20px;
         z-index:9998;
-        width: 260px;
-        height: calc(100vh - 140px); /* lässt Platz unten für Status-Legende */
-        background: #ffffff;
-        border-radius: 12px;
-        box-shadow: 0 10px 26px rgba(0,0,0,.18);
+        width: 280px;
+        max-width: calc(100vw - 40px);
+        height: calc(100vh - 140px);
+        background: linear-gradient(135deg, #f5f7fa 0%, #ffffff 100%);
+        border-radius: 16px;
+        box-shadow: 0 20px 60px rgba(0,0,0,.15);
         overflow: hidden;
-        font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-        display:flex;
+        font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+        display: none;
         flex-direction: column;
+        border: 1px solid rgba(59,130,246,.1);
     }}
     #country-menu .header {{
-        padding: 12px 14px;
-        border-bottom: 1px solid #edf2f7;
+        padding: 16px 18px;
+        border-bottom: 2px solid rgba(59,130,246,.1);
         display:flex;
         align-items:center;
         justify-content:space-between;
         flex: 0 0 auto;
+        background: linear-gradient(to right, rgba(59,130,246,.05), transparent);
     }}
     #country-menu .header h3 {{
         margin:0;
-        font-size: 15px;
+        font-size: 16px;
+        font-weight: 700;
+        color: #1e293b;
+        letter-spacing: -0.3px;
     }}
     #country-menu .content {{
-        padding: 12px 14px;
+        padding: 12px;
         flex: 1 1 auto;
         min-height: 0;
         display:flex;
@@ -505,25 +566,58 @@ def main():
         flex: 1 1 auto;
         min-height: 0;
         overflow-y: auto;
-        padding-right: 4px;
-        margin-top: 6px;
+        padding-right: 6px;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+        align-content: start;
+    }}
+    #country-list::-webkit-scrollbar {{
+        width: 6px;
+    }}
+    #country-list::-webkit-scrollbar-track {{
+        background: transparent;
+    }}
+    #country-list::-webkit-scrollbar-thumb {{
+        background: rgba(100,116,139,.3);
+        border-radius: 3px;
+    }}
+    #country-list::-webkit-scrollbar-thumb:hover {{
+        background: rgba(100,116,139,.5);
     }}
     .country-item {{
-        padding: 8px 10px;
+        padding: 10px 12px;
         border-radius: 10px;
         cursor: pointer;
         display:flex;
         align-items:center;
-        justify-content:space-between;
-        gap:10px;
-        border: 1px solid transparent;
+        justify-content:center;
+        text-align: center;
+        gap:6px;
+        border: 2px solid #e2e8f0;
+        background: #ffffff;
+        font-size: 12px;
+        font-weight: 500;
+        color: #334155;
+        transition: all 0.2s ease;
+        min-height: 40px;
     }}
     .country-item:hover {{
-        background:#f8f9fa;
+        border-color: #3b82f6;
+        background: #f0f7ff;
+        color: #1e40af;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(59,130,246,.15);
     }}
     .country-item.active {{
-        background:#f1f3ff;
-        border-color:#dee2ff;
+        background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+        color: #ffffff;
+        border-color: #1e40af;
+        box-shadow: 0 8px 20px rgba(59,130,246,.3);
+    }}
+    .country-item.active:hover {{
+        transform: translateY(-2px);
+        box-shadow: 0 10px 25px rgba(59,130,246,.35);
     }}
 
     /* EU capital label (only when country visible) */
@@ -565,19 +659,34 @@ def main():
         ).add_to(m)
 
     # ======================================================
-    # PROJEKTE
+    # PROJEKTE - Lade Daten (Excel oder Datenbank)
     # ======================================================
-    xls = pd.ExcelFile(EXCEL_PATH)
+    print(f"\n📊 Datenquelle: {get_data_source().upper()}")
+    
+    try:
+        projects_dict = load_projects()
+    except Exception as e:
+        print(f"❌ Fehler beim Laden der Projekte: {e}")
+        print(f"   Fallback auf Excel: {EXCEL_PATH}")
+        try:
+            xls = pd.ExcelFile(EXCEL_PATH)
+            projects_dict = {sheet: pd.read_excel(xls, sheet_name=sheet) for sheet in xls.sheet_names}
+        except Exception as e2:
+            print(f"❌ Auch Excel-Fallback fehlgeschlagen: {e2}")
+            projects_dict = {}
 
     pid_counter = 0
 
-    for sheet in xls.sheet_names:
+    for sheet, df in projects_dict.items():
         if sheet not in CATEGORY_COLOR:
             continue
+        
+        if df.empty:
+            continue
 
-        df = pd.read_excel(xls, sheet_name=sheet)
         required = {"Art", "VN", "Name", "Status", "PLZ"}
         if not required.issubset(df.columns):
+            print(f"⚠ Sheet '{sheet}' hat nicht alle erforderlichen Spalten: {required}")
             continue
 
         has_kunde = "Kunde" in df.columns
@@ -665,6 +774,8 @@ def main():
             </div>
             """
 
+            country = safe_str(row["_CC"], "DE") if "_CC" in row else "DE"
+
             icon_html = f"""
             <div class="pin project-marker"
                  data-id="{pid}"
@@ -674,6 +785,7 @@ def main():
                  data-vn="{vn}"
                  data-kunde="{kunde}"
                  data-status="{status}"
+                 data-country="{country}"
                  data-lat="{lat + dlat}"
                  data-lon="{lon + dlon}"
                  style="--status:{status_color}">
@@ -885,7 +997,10 @@ def main():
       var plants = Array.from(document.querySelectorAll('.f-plant:checked')).map(function(e){ return e.value; });
 
       document.querySelectorAll('.project-marker').forEach(function(m){
-        var show = cats.includes(m.dataset.category) && plants.includes(m.dataset.plant);
+        var countryCode = m.dataset.country || 'DE';
+        var countryVisible = (countryCode === 'DE') || EU_VISIBLE.has(getCountryNameFromCode(countryCode));
+        var filterPass = cats.includes(m.dataset.category) && plants.includes(m.dataset.plant);
+        var show = filterPass && countryVisible;
         setMarkerVisible(m, show);
       });
 
@@ -895,6 +1010,16 @@ def main():
       }
 
       buildProjectList();
+    }
+    
+    function getCountryNameFromCode(code) {
+      // Umkehrung: Code -> Name
+      const codeToName = {
+        'AT': 'Austria', 'BE': 'Belgium', 'CZ': 'Czechia', 'DK': 'Denmark',
+        'FR': 'France', 'LU': 'Luxembourg', 'NL': 'Netherlands', 'PL': 'Poland',
+        'CH': 'Switzerland'
+      };
+      return codeToName[code] || 'Germany';
     }
 
     function initSidebar() {
@@ -943,65 +1068,49 @@ def main():
     m.get_root().html.add_child(Element(legend_html))
 
     # ======================================================
-    # EUROPA LÄNDER (default OFF) + Hauptstadt pro Land bei Auswahl
+    # EUROPA LÄNDER (direct JS embedding, NOT via Folium layers)
     # ======================================================
     europe_data = load_europe_geojson(EUROPE_GEOJSON_PATH)
-    europe_layers = []  # list of tuples: (country_name, geojson_layer)
+    europe_countries = {}  # country_name -> geojson feature collection
 
     if europe_data:
-        name_field = "ADMIN"  # bei dir: ADMIN
+        name_field = "ADMIN"
 
-        by_country = {}
         for ft in europe_data.get("features", []):
             props = ft.get("properties") or {}
             cname = str(props.get(name_field, "")).strip()
             if not cname:
                 continue
+            # Nur europäische Länder + Deutschland ausschließen
+            if cname not in EUROPEAN_COUNTRIES:
+                continue
             if cname.lower() in {"germany", "deutschland", "bundesrepublik deutschland"}:
-                continue  # Deutschland immer Standard, nicht im EU-Menü
-            by_country.setdefault(cname, []).append(ft)
+                continue  # Deutschland ausschließen
+            europe_countries.setdefault(cname, []).append(ft)
 
-        for cname in sorted(by_country.keys(), key=lambda s: s.casefold()):
-            fc = {"type": "FeatureCollection", "features": by_country[cname]}
-            layer = folium.GeoJson(
-                fc,
-                name=f"EU_{cname}",
-                control=False,
-                show=False,  # ✅ default off
-                style_function=lambda _, c=cname: {
-                    "color": "#2b4b8a",
-                    "weight": 1,
-                    "fillColor": "#dbe4ff",
-                    "fillOpacity": 0.22,
-                },
-                highlight_function=lambda _: {
-                    "weight": 2,
-                    "fillOpacity": 0.32,
-                },
-            )
-            layer.add_to(m)
-            europe_layers.append((cname, layer))
+        print(f"📍 Europa: {len(europe_countries)} Länder geladen (gefiltert)")
+        print(f"   Nachbarländer: {', '.join(sorted([c for c in europe_countries.keys() if c in GER_NEIGHBORS]))}")
 
-    if europe_layers:
-        mapping_lines = []
-        country_names = []
+    if europe_countries:
+        # Erstelle GeoJSON Daten als JavaScript-Objekt
+        eu_data_js_lines = []
+        country_names_sorted = sorted(europe_countries.keys(), key=lambda s: s.casefold())
 
-        for cname, layer in europe_layers:
-            varname = layer.get_name()  # "geo_json_xxx"
-            country_names.append(cname)
-            mapping_lines.append(
-                f'EU_LAYERS[{json.dumps(cname)}] = window[{json.dumps(varname)}];'
-            )
+        for cname in country_names_sorted:
+            features = europe_countries[cname]
+            fc = {"type": "FeatureCollection", "features": features}
+            geojson_json = json.dumps(fc, ensure_ascii=False)
+            eu_data_js_lines.append(f'  {json.dumps(cname)}: {geojson_json}')
 
-        country_names_sorted = sorted(country_names, key=lambda s: s.casefold())
+        eu_data_js = "{\n" + ",\n".join(eu_data_js_lines) + "\n}"
 
+        # Nachbarländer Liste für JavaScript
+        neighbor_names_js = json.dumps(sorted([c for c in country_names_sorted if c in GER_NEIGHBORS]))
+        
         items_html = "\n".join(
-            f"""<div class="country-item" data-country="{c}">
-                  <div style="min-width:0;">
-                    <div class="project-name">{c}</div>
-                  </div>
-                  <span class="small-pill">EU</span>
-                </div>"""
+            f"""<button class="country-item" data-country="{c}" title="Zeige {c}">
+                    {c}
+                </button>"""
             for c in country_names_sorted
         )
 
@@ -1009,26 +1118,67 @@ def main():
             k.lower(): {"city": v[0], "lat": v[1], "lon": v[2]}
             for k, v in EU_CAPITALS.items()
         }
+        
+        # Länder-Farben für JavaScript
+        country_colors_json = {c: COUNTRY_COLORS.get(c, "#e5f5e0") for c in country_names_sorted}
 
-        europe_menu_html = f"""
+        europe_menu_html = """
         <div id="country-menu">
           <div class="header">
-            <h3>Europa Länder</h3>
-            <span class="small-pill" id="country-count">0</span>
+            <h3>🌍 Europa</h3>
+            <button id="country-menu-close" style="background:none;border:none;font-size:20px;cursor:pointer;color:#64748b;padding:0;width:24px;height:24px;display:flex;align-items:center;justify-content:center;border-radius:6px;transition:all 0.2s;" title="Schließen">✕</button>
           </div>
           <div class="content">
-            <div class="section-title">Auswahl (default aus)</div>
+            <button id="neighbors-button" style="width:100%;padding:10px;background:linear-gradient(135deg,#10b981 0%,#059669 100%);color:white;border:none;border-radius:8px;font-weight:600;cursor:pointer;margin-bottom:12px;transition:all 0.2s;box-shadow:0 4px 12px rgba(16,185,129,.2);" title="Nachbarländer anzeigen">
+              🇩🇪 Nachbarländer
+            </button>
             <div id="country-list">
-              {items_html}
+              {items}
             </div>
-            <div class="divider"></div>
-            <div style="font-size:12px;color:#495057;">
-              Klicke ein Land → es wird eingeblendet <b>inkl. Hauptstadt</b>.
+            <div style="margin-top:8px;padding:8px;background:rgba(59,130,246,.05);border-radius:8px;border-left:3px solid #3b82f6;">
+              <div style="font-size:11px;color:#475569;line-height:1.5;font-weight:500;">
+                💡 Länder anklicken zum Einblenden
+              </div>
             </div>
           </div>
         </div>
 
+        <div id="country-menu-toggle" style="position:fixed;top:20px;left:20px;z-index:9999;">
+          <button id="open-country-menu" style="background:linear-gradient(135deg,#3b82f6 0%,#2563eb 100%);color:white;border:none;padding:12px 18px;border-radius:12px;font-size:14px;font-weight:600;cursor:pointer;box-shadow:0 8px 20px rgba(59,130,246,.3);transition:all 0.3s ease;display:flex;align-items:center;gap:8px;" title="Europa anzeigen">
+            🌍 Europa
+          </button>
+        </div>
+
         <script>
+        // Globale Variablen für Land-Filterung (müssen global sein für beide Scripts)
+        window.EU_VISIBLE = new Set();
+        window.COUNTRY_NAME_TO_CODE = {{
+          'Austria': 'AT', 'Belgium': 'BE', 'Czechia': 'CZ', 'Denmark': 'DK',
+          'France': 'FR', 'Luxembourg': 'LU', 'Netherlands': 'NL', 'Poland': 'PL',
+          'Switzerland': 'CH'
+        }};
+        
+        window.getCountryCode = function(countryName) {{
+          return window.COUNTRY_NAME_TO_CODE[countryName] || 'DE';
+        }};
+        
+        window.getCountryNameFromCode = function(code) {{
+          const codeToName = {{
+            'AT': 'Austria', 'BE': 'Belgium', 'CZ': 'Czechia', 'DK': 'Denmark',
+            'FR': 'France', 'LU': 'Luxembourg', 'NL': 'Netherlands', 'PL': 'Poland',
+            'CH': 'Switzerland'
+          }};
+          return codeToName[code] || 'Germany';
+        }};
+        
+        // Toggle Menu öffnen/schließen
+        document.getElementById('open-country-menu').addEventListener('click', function(){{
+          var menu = document.getElementById('country-menu');
+          var toggle = document.getElementById('country-menu-toggle');
+          menu.style.display = 'flex';
+          toggle.style.display = 'none';
+        }});
+        
         function getLeafletMapInstance() {{
           for (var k in window) {{
             var v = window[k];
@@ -1040,22 +1190,63 @@ def main():
           return null;
         }}
 
+        // EU-Länder GeoJSON Daten
+        const EU_DATA = {eu_data_js};
+        const NEIGHBOR_NAMES = {neighbor_names_js};
+        const COUNTRY_COLORS = {country_colors_json};
+        
+        // Layer-Objekte, die wir dynamisch erstellen
         const EU_LAYERS = {{}};
-        {chr(10).join(mapping_lines)}
-
-        const EU_CAPITALS = {json.dumps(capitals_json, ensure_ascii=False)};
         const EU_CAPITAL_MARKERS = {{}};
-        const EU_VISIBLE = new Set();
+        
+        // Erstelle Layer beim Start
+        function initEULayers() {{
+          const map = getLeafletMapInstance();
+          if (!map) {{
+            console.warn('Map nicht gefunden');
+            return;
+          }}
 
-        function capKey(countryName) {{
-          return (countryName || "").toLowerCase().trim();
+          for (const countryName in EU_DATA) {{
+            const geoData = EU_DATA[countryName];
+            const fillColor = COUNTRY_COLORS[countryName] || '#e5f5e0';
+            const layer = L.geoJSON(geoData, {{
+              style: function() {{
+                return {{
+                  color: '#333333',
+                  weight: 1.5,
+                  fillColor: fillColor,
+                  fillOpacity: 0.6
+                }};
+              }},
+              onEachFeature: function(feature, layer) {{
+                layer.on('mouseover', function() {{
+                  layer.setStyle({{ weight: 2.5, fillOpacity: 0.8 }});
+                }});
+                layer.on('mouseout', function() {{
+                  layer.setStyle({{ weight: 1.5, fillOpacity: 0.6 }});
+                }});
+              }}
+            }});
+            EU_LAYERS[countryName] = layer;
+          }}
+          console.log('✓ EU-Layer erstellt:', Object.keys(EU_LAYERS).length);
+        }}
+
+        const EU_CAPITALS = {capitals};
+        
+        // Mapping: Ländernamen -> Länder-Codes (ISO2)
+        const COUNTRY_NAME_TO_CODE = window.COUNTRY_NAME_TO_CODE;
+        
+        function getCountryCode(countryName) {{
+          return window.getCountryCode(countryName);
         }}
 
         function addCapital(countryName) {{
           const map = getLeafletMapInstance();
           if (!map) return;
 
-          const key = capKey(countryName);
+          const key = countryName.toLowerCase().trim();
           const info = EU_CAPITALS[key];
           if (!info) return;
 
@@ -1071,21 +1262,66 @@ def main():
           const map = getLeafletMapInstance();
           if (!map) return;
 
-          const key = capKey(countryName);
+          const key = countryName.toLowerCase().trim();
           const m = EU_CAPITAL_MARKERS[key];
-          if (m) map.removeLayer(m);
+          if (m && map.hasLayer(m)) map.removeLayer(m);
+        }}
+
+        function addCapital(countryName) {{
+          const map = getLeafletMapInstance();
+          if (!map) return;
+
+          const key = countryName.toLowerCase().trim();
+          const info = EU_CAPITALS[key];
+          if (!info) return;
+
+          if (!EU_CAPITAL_MARKERS[key]) {{
+            const html = `<div class="eu-capital"><span class="dot">●</span>${{info.city}}</div>`;
+            const icon = L.divIcon({{ html: html, className: "", iconAnchor: [0, 10] }});
+            EU_CAPITAL_MARKERS[key] = L.marker([info.lat, info.lon], {{ icon }});
+          }}
+          EU_CAPITAL_MARKERS[key].addTo(map);
+        }}
+
+        function removeCapital(countryName) {{
+          const map = getLeafletMapInstance();
+          if (!map) return;
+
+          const key = countryName.toLowerCase().trim();
+          const m = EU_CAPITAL_MARKERS[key];
+          if (m && map.hasLayer(m)) map.removeLayer(m);
         }}
 
         function showCountry(countryName) {{
           const map = getLeafletMapInstance();
-          if (!map) return;
+          if (!map) {{
+            console.error('Map nicht gefunden');
+            return;
+          }}
 
           const layer = EU_LAYERS[countryName];
-          if (!layer) return;
+          if (!layer) {{
+            console.error('Layer nicht gefunden für:', countryName);
+            return;
+          }}
 
-          layer.addTo(map);
+          if (!map.hasLayer(layer)) {{
+            map.addLayer(layer);
+          }}
+          
           addCapital(countryName);
-          EU_VISIBLE.add(countryName);
+          window.EU_VISIBLE.add(countryName);
+          
+          // Zeige auch Projekte in diesem Land
+          const countryCode = getCountryCode(countryName);
+          document.querySelectorAll('.project-marker[data-country="' + countryCode + '"]').forEach(function(markerDiv) {{
+            if (markerDiv) {{
+              setMarkerVisible(markerDiv, true);
+            }}
+          }});
+          
+          // Aktualisiere Projektliste
+          buildProjectList();
         }}
 
         function hideCountry(countryName) {{
@@ -1097,67 +1333,80 @@ def main():
 
           if (map.hasLayer(layer)) map.removeLayer(layer);
           removeCapital(countryName);
-          EU_VISIBLE.delete(countryName);
+          window.EU_VISIBLE.delete(countryName);
+          
+          // Verstecke auch Projekte in diesem Land
+          const countryCode = getCountryCode(countryName);
+          document.querySelectorAll('.project-marker[data-country="' + countryCode + '"]').forEach(function(markerDiv) {{
+            if (markerDiv) {{
+              setMarkerVisible(markerDiv, false);
+            }}
+          }});
+          
+          // Aktualisiere Projektliste
+          buildProjectList();
         }}
 
         function toggleCountry(countryName) {{
-          if (EU_VISIBLE.has(countryName)) {{
+          if (window.EU_VISIBLE.has(countryName)) {{
             hideCountry(countryName);
           }} else {{
             showCountry(countryName);
           }}
-          updateCountryCount();
-        }}
-
-        function updateCountryCount() {{
-          const el = document.getElementById("country-count");
-          if (el) el.textContent = String(EU_VISIBLE.size);
-        }}
-
-        function layersReady() {{
-          const keys = Object.keys(EU_LAYERS);
-          if (!keys.length) return false;
-          for (const k of keys) {{
-            const layer = EU_LAYERS[k];
-            if (!layer || typeof layer.addTo !== "function") return false;
-          }}
-          return true;
         }}
 
         function initCountryMenu() {{
-          // Sicher alles aus
-          Object.keys(EU_LAYERS).forEach(function(k) {{
-            hideCountry(k);
-          }});
-          updateCountryCount();
-
           document.querySelectorAll("#country-list .country-item").forEach(function(item) {{
             item.addEventListener("click", function() {{
               const c = item.dataset.country;
               toggleCountry(c);
-              item.classList.toggle("active", EU_VISIBLE.has(c));
+              item.classList.toggle("active", window.EU_VISIBLE.has(c));
             }});
           }});
-        }}
 
-        function waitAndInit(retries) {{
-          if (retries === undefined) retries = 80;
-          if (layersReady()) {{
-            initCountryMenu();
-            return;
+          // Nachbarländer Button
+          document.getElementById('neighbors-button').addEventListener('click', function() {{
+            NEIGHBOR_NAMES.forEach(function(country) {{
+              if (!window.EU_VISIBLE.has(country)) {{
+                showCountry(country);
+                var btn = document.querySelector('[data-country="' + country + '"]');
+                if (btn) btn.classList.add('active');
+              }}
+            }});
+          }});
+
+          // Schließen-Button
+          var closeBtn = document.getElementById('country-menu-close');
+          var openContainer = document.getElementById('country-menu-toggle');
+          if (closeBtn) {{
+            closeBtn.addEventListener('click', function() {{
+              var el = document.getElementById('country-menu');
+              if (!el) return;
+              el.style.display = 'none';
+              if (openContainer) openContainer.style.display = 'block';
+            }});
           }}
-          if (retries <= 0) {{
-            initCountryMenu();
-            return;
-          }}
-          setTimeout(function(){{ waitAndInit(retries - 1); }}, 150);
         }}
 
         document.addEventListener("DOMContentLoaded", function() {{
-          waitAndInit();
+          setTimeout(function() {{
+            initEULayers();
+            initCountryMenu();
+            
+            // Automatisch Nachbarländer beim Laden anzeigen (damit Projekte dort sichtbar sind)
+            NEIGHBOR_NAMES.forEach(function(country) {{
+              showCountry(country);
+              var btn = document.querySelector('[data-country="' + country + '"]');
+              if (btn) btn.classList.add('active');
+            }});
+            
+            console.log('✓ Nachbarländer automatisch geladen:', NEIGHBOR_NAMES.join(', '));
+          }}, 300);
         }});
         </script>
-        """
+        """.format(items=items_html, eu_data_js=eu_data_js, neighbor_names_js=neighbor_names_js, 
+                   capitals=json.dumps(capitals_json, ensure_ascii=False), 
+                   country_colors_json=json.dumps(country_colors_json, ensure_ascii=False))
         m.get_root().html.add_child(Element(europe_menu_html))
 
     # ---------- SAVE ----------
