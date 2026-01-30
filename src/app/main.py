@@ -2,6 +2,7 @@ import math
 import base64
 import warnings
 import json
+import os
 from io import BytesIO
 from pathlib import Path
 
